@@ -35,10 +35,23 @@ char *Colors[7] = {"\033[91m", "\033[92m", "\033[93m", "\033[94m", "\033[95m", "
 void draw();
 void forbiddenMove(char *move);
 
-bool turn(Player player);
-void getWinner(Player player1, Player player2);
-void readHole(int *holeNbr, char *color);
-int getSeeds(Player player, int holeNbr, char color);
-int *readLine(int *length);
-void setSeeds(Player player, int nbrSeeds, char color, int startingHole, int *holes, int length);
-void capture(Player player, int startingHole);
+bool turn(Player *player);
+void getWinner(Player *player1, Player *player2);
+
+void readHole(int *startingHole, char *color);
+void readHoleBOT(Player *player, int *startingHole, char *color);
+
+int getSeeds(Player *player, int startingHole, char color);
+
+List_i *readLine();
+List_i *readLineBOT(Player *player, char color, int startingHole, int nbrSeeds);
+
+void setSeeds(Player *player, int nbrSeeds, char color, int startingHole, List_i *holes);
+void capture(Player *player, int startingHole);
+
+List_s *possiblesHolesToPick(Player *player);
+List_ii *possiblesHolesToSow(Player *player, char color, int startingHole, int sampleSize);
+
+char *moveToString(int i, char color);
+
+void countSort(List_i *list);
