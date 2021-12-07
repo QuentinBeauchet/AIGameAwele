@@ -5,8 +5,9 @@
 #include <malloc.h>
 #include "Tree.h"
 
-Tree* createNode(int data){
+Tree* createNode(char* label,int data){
     Tree *treeTemp = (Tree*)malloc(sizeof(Tree));
+    treeTemp->label = label;
     treeTemp->data = data;
     treeTemp->size = 0;
     return treeTemp;
