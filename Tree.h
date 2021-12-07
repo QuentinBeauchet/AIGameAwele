@@ -15,4 +15,5 @@ typedef struct Tree {
 } Tree;
 
 Tree* createNode(char* label,int data);
-void addLeef(Tree root, Tree leef);
+void addLeef(Tree* root, Tree* leef);
+void printTree(Tree t);
