@@ -30,7 +30,7 @@ enum Colors {
     DEFAULT
 };
 
-char *Colors[7] = {"\033[91m", "\033[92m", "\033[93m", "\033[94m", "\033[95m", "\033[96m", "\033[0m"};
+char *Colors[7] = {"", "", "", "", "", "", ""};
 
 void draw();
 void forbiddenMove(char *move);
