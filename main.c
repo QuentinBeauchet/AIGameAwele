@@ -1,72 +1,178 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 #include <time.h>
-#include "List.h"
+#include <string.h>
 #include "main.h"
+#include "List.h"
 
-Board board;
-
-int main() {
-    /*
-    srand(time(NULL));
-    board = newBoard;
-    Player player1 = newPlayer1;
-    Player player2 = newPlayer2;
-    while (true) {
-        printf("%s------------------------------Player 1------------------------------%s\n", Colors[YELLOW], Colors[DEFAULT]);
-        if (turn(&player1)) {
-            getWinner(&player1, &player2);
-            break;
-        }
-        printf("%s------------------------------Player 2------------------------------%s\n", Colors[YELLOW], Colors[DEFAULT]);
-        if (turn(&player2)) {
-            getWinner(&player1, &player2);
-            break;
-        }
-    }*/
+Move createNode(Move *move, bool p1Turn, int nodeNbr, bool blue) {
+    Move copy = copyMove(*move);
+    move->hole = nodeNbr;
+    move->color = blue ? 'B' : 'R';
+    return copy;
 }
 
-void getWinner(Player *player1, Player *player2) {
-    if (player1->seeds > player2->seeds) {
-        printf("%sLe joueur 1 a gagné.%s\n", Colors[CYAN], Colors[DEFAULT]);
-    } else if (player1->seeds < player2->seeds) {
-        printf("%sLe joueur 2 a gagné.%s\n", Colors[CYAN], Colors[DEFAULT]);
+Move valeurMinMax(Move move, bool p1Turn, int profondeur, int profondeurMax) {
+    // WIN JOUEUR 1
+    if (move.p1.seeds > 33 || (!p1Turn && move.hole == -1)) {
+        move.score = 64;
+        return move;
+    }
+    // WIN JOUEUR 2
+    if (move.p2.seeds > 33 || (p1Turn && move.hole == -1)) {
+        move.score = -64;
+        return move;
+    }
+    // PROFONDEUR MAX
+    if (profondeur == profondeurMax || move.board.total <= 8) {
+        // FONCTION EVALUATION
+        move.score = move.p1.seeds - move.p2.seeds - profondeur;
+        return move;
+    }
+
+    Move bestMax = {.score = -100, .hole = -1, .color = ' '};
+    Move bestMin = {.score = 100, .hole = -1, .color = ' '};
+    Player player = p1Turn ? move.p1 : move.p2;
+    // Initialisation des parametres des nodes
+    for (int i = player.even; i < 16; i += 2) {
+        // Trous BLEU
+        if (move.board.holes[i].B > 0) {
+            Move copy = createNode(&move, p1Turn, i, true);
+
+            // Joue le coup
+            playMove(&move, p1Turn);
+            Move res = valeurMinMax(move, !p1Turn, profondeur + 1, profondeurMax);
+            move = copy;
+
+            // Comparaison avec max/min
+            if (res.score > bestMax.score && p1Turn) {
+                if (profondeur == 0) {
+                    bestMax = res;
+                } else {
+                    bestMax = move;
+                }
+            } else if (res.score < bestMin.score && !p1Turn) {
+                if (profondeur == 0) {
+                    bestMin = res;
+                } else {
+                    bestMin = move;
+                }
+            }
+        }
+
+        // Trous ROUGES
+        if (move.board.holes[i].R > 0) {
+            Move copy = copyMove(move);
+            move.hole = i;
+            move.color = 'R';
+
+            // Joue le coup
+            playMove(&move, p1Turn);
+            Move res = valeurMinMax(move, !p1Turn, profondeur + 1, profondeurMax);
+            move = copy;
+
+            // Comparaison avec max/min
+            if (res.score > bestMax.score && p1Turn) {
+                if (profondeur == 0) {
+                    bestMax = res;
+                } else {
+                    bestMax = move;
+                }
+            } else if (res.score < bestMin.score && !p1Turn) {
+                if (profondeur == 0) {
+                    bestMin = res;
+                } else {
+                    bestMin = move;
+                }
+            }
+        }
+    }
+    // Resultats
+    if (p1Turn) {
+        return bestMax;
     } else {
-        printf("%sEgalité.%s\n", Colors[CYAN], Colors[DEFAULT]);
+        return bestMin;
     }
 }
 
-bool turn(Player *player) {
-    draw();
+List_i *sow;
+int initSow(int startingHole, char color, bool p1Turn, int nbrSeeds) {
+    int decalage = 1;
+    if (color == 'B') {
+        decalage = 2;
+    }
+    int index = startingHole + 1;
+    sow->length = 0;
+    for (int i = 0; i < nbrSeeds; ++i) {
+        if (index == 16)
+            index = 0;
+        if (index == 17)
+            index = 1;
+        sow->tab[i] = index;
+        sow->length++;
+        index = index + decalage;
+    }
 
-    printf("%sEntrez votre coup:%s\n", Colors[GREEN], Colors[DEFAULT]);
-    int startingHole;
-    char color;
-    // MANUEL
-    // readHole(&startingHole, &color);
-    // AUTO
-    readHoleBOT(player, &startingHole, &color);
+    return sow->tab[sow->length - 1];
+}
 
-    int seeds = getSeeds(player, startingHole, color);
+int playMove(Move *move, bool p1Turn) {
+    Player *player = p1Turn ? &move->p1 : &move->p2;
+    // Recuperation des graines
+    int nbrSeeds = getSeeds(&move->board, player, move->hole, move->color);
+    // Creation de la liste sow
+    int lastHole = initSow(move->hole, move->color, p1Turn, nbrSeeds);
+    // Semage
+    setSeeds(&move->board, player, nbrSeeds, move->color, move->hole);
+    // Recolte
+    return capture(&move->board, player, lastHole);
+}
 
-    printf("%sVous devez semer %d graines:%s\n", Colors[GREEN], seeds, Colors[DEFAULT]);
-    // MANUEL
-    // List_i *holes = readLine();
-    // AUTO
-    List_i *holes = readLineBOT(player, color, startingHole, seeds);
+Move copyMove(Move move) {
+    Move copy = move;
+    copy.board = copyBoard(move.board);
+    copy.p1 = (Player){move.p1.seeds, move.p1.even};
+    copy.p2 = (Player){move.p2.seeds, move.p2.even};
+    return copy;
+}
 
-    setSeeds(player, seeds, color, startingHole, holes);
-    freeList_i(holes);
-    capture(player, startingHole);
-
-    return player->seeds >= 33 || board.total < 8;
+Board copyBoard(Board board) {
+    Board copy = {{{2, 2}, {2, 2}, {2, 2}, {2, 2}, {2, 2}, {2, 2}, {2, 2}, {2, 2}, {2, 2}, {2, 2}, {2, 2}, {2, 2}, {2, 2}, {2, 2}, {2, 2}, {2, 2}}, 64};
+    for (int i = 0; i < 16; i++) {
+        copy.holes[i].R = board.holes[i].R;
+        copy.holes[i].B = board.holes[i].B;
+    }
+    copy.total = board.total;
+    return copy;
 }
 
 void forbiddenMove(char *move) {
     printf("%sCout interdit: %s%s%s\n", Colors[RED], Colors[YELLOW], move, Colors[DEFAULT]);
     exit(1);
+}
+
+void printMove(Move move) {
+    if (move.color != 0) {
+        printf("Move : %d%c   ", move.hole + 1, move.color);
+        for (int i = 0; i < sow->length; i++) {
+            printf("%d ", sow->tab[i] + 1);
+        }
+        printf("\n");
+    } else {
+        printf("UNINITALIZED\n");
+    }
+    printBoard(move.board);
+    printf("P1: %d   P2: %d\n", move.p1.seeds, move.p2.seeds);
+}
+
+void printBoard(Board board) {
+    for (int i = 0; i < 16; i++) {
+        printf("%d(%s%d%s,%s%d%s) ", i + 1, Colors[RED], board.holes[i].R, Colors[DEFAULT], Colors[BLUE], board.holes[i].B, Colors[DEFAULT]);
+        if (i == 7 || i == 15) {
+            printf("\n");
+        }
+    }
 }
 
 void readHole(int *startingHole, char *color) {
@@ -76,88 +182,40 @@ void readHole(int *startingHole, char *color) {
     *color = *startingHole < 10 ? move[1] : move[2];
 }
 
-void readHoleBOT(Player *player, int *startingHole, char *color) {
-    List_s *possibilities = possiblesHolesToPick(player);
-    char *move = possibilities->tab[rand() % possibilities->length];
-    *startingHole = atoi(move);
-    *color = *startingHole < 10 ? move[1] : move[2];
-    printf("%d%c\n", *startingHole + 1, *color);
-    freeList_s(possibilities);
-}
-
-int getSeeds(Player *player, int startingHole, char color) {
-    if ((startingHole >= 0 && startingHole < 16) && (color == 'R' || color == 'B') &&
-        ((startingHole & 1) == player->even)) {
+int getSeeds(Board *board, Player *player, int startingHole, char color) {
+    if ((startingHole >= 0 && startingHole < 16) && (color == 'R' || color == 'B') && ((startingHole & 1) == player->even)) {
         int seeds;
         if (color == 'R') {
-            seeds = board.holes[startingHole].R;
-            board.holes[startingHole].R = 0;
+            seeds = board->holes[startingHole].R;
+            board->holes[startingHole].R = 0;
         } else {
-            seeds = board.holes[startingHole].B;
-            board.holes[startingHole].B = 0;
+            seeds = board->holes[startingHole].B;
+            board->holes[startingHole].B = 0;
         }
         if (seeds == 0) {
-            // TODO Starving
             forbiddenMove("Il n'y a aucune graines.");
         }
         return seeds;
     }
+    if (startingHole == -1) {
+        forbiddenMove("Joueur affamé.");
+    }
     forbiddenMove("Trou inaccesible.");
 }
 
-List_i *readLine() {
-    char c;
-    char nbr[3];
-    List_i *holes = malloc(sizeof(List_i));
-    holes->tab = malloc(sizeof(int) * 32);
-    holes->length = 0;
-    int i = 0;
-    do {
-        scanf("%c", &c);
-        if (c == ' ' || c == '\n') {
-            if (i == 0 && holes->length == 0) {
-                c = ' ';
-                continue;
-            }
-            nbr[i] = '\0';
-            i = 0;
-            holes->tab[holes->length] = atoi(nbr) - 1;
-            holes->length++;
-        } else {
-            nbr[i] = c;
-            i++;
-        }
-    } while (c != '\n');
-    return holes;
-}
-
-List_i *readLineBOT(Player *player, char color, int startingHole, int nbrSeeds) {
-    List_ii *possibilities = possiblesHolesToSow(player, color, startingHole, nbrSeeds);
-    int index = rand() % possibilities->length;
-    List_i *combination = possibilities->tab[index];
-    freeListBlackList_ii(possibilities, index);
-
-    for (int i = 0; i < combination->length; i++) {
-        printf("%d ", combination->tab[i] + 1);
-    }
-    printf("\n");
-
-    return combination;
-}
-
-void setSeeds(Player *player, int nbrSeeds, char color, int startingHole, List_i *holes) {
-    if (nbrSeeds == holes->length) {
+void setSeeds(Board *board, Player *player, int nbrSeeds, char color, int startingHole) {
+    if (nbrSeeds == sow->length) {
         int lastHole = startingHole;
-        for (int i = 0; i < holes->length; i++) {
-            int n = holes->tab[i];
+        for (int i = 0; i < sow->length; i++) {
+            int n = sow->tab[i];
             if (n == startingHole || (lastHole > n && n > startingHole) || n < 0 || n > 15) {
                 forbiddenMove("Combinaison interdite.\n");
             }
             lastHole = n;
             if (color == 'B' && player->even != n % 2) {
-                board.holes[n].B += 1;
+                board->holes[n].B += 1;
             } else if (color == 'R') {
-                board.holes[n].R += 1;
+                board->holes[n].R += 1;
             } else {
                 forbiddenMove("Les graines bleus vont seulement chez l'adversaire.");
             }
@@ -167,15 +225,17 @@ void setSeeds(Player *player, int nbrSeeds, char color, int startingHole, List_i
     }
 }
 
-void capture(Player *player, int startingHole) {
-    int i = startingHole;
+int capture(Board *board, Player *player, int lastSowedHole) {
+    int i = lastSowedHole;
+    int sum = board->total;
     do {
-        int nbrSeeds = board.holes[i].R + board.holes[i].B;
+        int nbrSeeds = board->holes[i].R + board->holes[i].B;
         if (nbrSeeds == 2 || nbrSeeds == 3) {
-            board.holes[i].R = 0;
-            board.holes[i].B = 0;
+            board->holes[i].R = 0;
+            board->holes[i].B = 0;
             player->seeds += nbrSeeds;
-            board.total -= nbrSeeds;
+            board->total -= nbrSeeds;
+            sum += nbrSeeds;
             i--;
             if (i < 0) {
                 i = 15;
@@ -183,121 +243,86 @@ void capture(Player *player, int startingHole) {
         } else {
             break;
         }
-    } while (i != startingHole);
-    printf("%sLe joueur %d a %d graines.%s\n", Colors[MAGENTA], player->even + 1, player->seeds, Colors[DEFAULT]);
+    } while (i != lastSowedHole);
+    return sum;
 }
 
-List_s *possiblesHolesToPick(Player *player) {
-    List_s *holes = newList_s(16);
-    for (int i = player->even; i < 16; i += 2) {
-        if (board.holes[i].B > 0) {
-            holes->tab[holes->length] = moveToString(i, 'B');
-            holes->length++;
-        }
-        if (board.holes[i].R > 0) {
-            holes->tab[holes->length] = moveToString(i, 'R');
-            holes->length++;
-        }
-    }
-    if (holes->length == 0) {
-        forbiddenMove("Le joueur est affamé");
-    }
-    return holes;
+void turn(Board *board, Player *p1, Player *p2, bool p1Turn) {
+    printBoard(*board);
+
+    printf("%sEntrez votre coup:%s\n", Colors[GREEN], Colors[DEFAULT]);
+    int startingHole;
+    char color;
+    readHole(&startingHole, &color);
+
+    Move move = {*board, *p1, *p2, startingHole, color};
+    int capture = playMove(&move, p1Turn);
+    printf("%sLe joueur %d a capturé %d graines.%s\n", Colors[MAGENTA], !p1Turn + 1, capture - board->total, Colors[DEFAULT]);
 }
 
-char *moveToString(int i, char color) {
-    char *str = malloc(sizeof(char) * 4);
-    if (i >= 10) {
-        str[0] = '1';
-        str[1] = i - 10 + '0';
-        str[2] = color;
-        str[3] = '\0';
-    } else {
-        str[0] = i + '0';
-        str[1] = color;
-        str[2] = '\0';
+float lastTime = 2;
+void turnMinMax(Board *board, Player *p1, Player *p2, bool p1Turn) {
+    Move move = {*board, *p1, *p2};
+    Move copy = copyMove(move);
+    Player *player = p1Turn ? p1 : p2;
+
+    int profondeur;
+    if (lastTime > 1.5) {
+        profondeur = 6;
+    } else if (lastTime > 1.0) {
+        profondeur = 15;
     }
-    return str;
+
+    // TEMPS
+    clock_t t1, t2;
+    t1 = clock();
+    copy = valeurMinMax(copy, p1Turn, 0, 6);
+    t2 = clock();
+    lastTime = (float)(t2 - t1) / CLOCKS_PER_SEC;
+    printf("--------------PROFONDEUR %i--------------\ntemps = %f\n----------------------------------------\n", profondeur, lastTime);
+
+    // TODO modifier
+    int nbrSeeds = getSeeds(board, player, copy.hole, copy.color);
+    int lastHole = initSow(copy.hole, copy.color, p1Turn, nbrSeeds);
+    printMove(copy);
+    setSeeds(board, player, nbrSeeds, copy.color, copy.hole);
+    int sum = capture(board, player, lastHole);
+    printf("%sLe joueur %d a capturé %d graines.%s\n", Colors[MAGENTA], !p1Turn + 1, sum - board->total, Colors[DEFAULT]);
 }
 
-List_ii *possiblesHolesToSow(Player *player, char color, int startingHole, int sampleSize) {
-    int nbrPossibilities = color == 'B' ? 8 : 16;
-    List_i *holes = newList_i(nbrPossibilities);
-    int val = 0;
-    while (val < nbrPossibilities) {
-        if (val != startingHole) {
-            if (color == 'B') {
-                holes->tab[holes->length] = val * 2 + !player->even;
-            } else {
-                holes->tab[holes->length] = val;
-            }
-            holes->length++;
+void getWinner(Board board, Player p1, Player p2) {
+    if (board.total <= 8) {
+        if (p1.seeds > p2.seeds) {
+            printf("Le joueur 1 a gagné.\n");
         }
-        val++;
-    }
-
-    // TODO generer les combinaisons
-    List_ii *combination = newList_ii(1);
-
-    List_i *smaller = newList_i(sampleSize);
-    List_i *bigger = newList_i(sampleSize);
-
-    while (smaller->length + bigger->length < sampleSize) {
-        int value = holes->tab[rand() % holes->length];
-        if (value < startingHole) {
-            smaller->tab[smaller->length] = value;
-            smaller->length++;
+        if (p1.seeds < p2.seeds) {
+            printf("Le joueur 2 a gagné.\n");
         } else {
-            bigger->tab[bigger->length] = value;
-            bigger->length++;
+            printf("Egalité.\n");
         }
+    } else if (p1.seeds >= 33) {
+        printf("Le joueur 1 a gagné.\n");
+    } else if (p2.seeds >= 33) {
+        printf("Le joueur 2 a gagné.\n");
+    } else {
+        return;
     }
-    countSort(smaller);
-    countSort(bigger);
-    List_i *comb = newList_i(smaller->length + bigger->length);
-    for (int i = 0; i < bigger->length; i++) {
-        comb->tab[comb->length] = bigger->tab[i];
-        comb->length++;
-    }
-    for (int i = 0; i < smaller->length; i++) {
-        comb->tab[comb->length] = smaller->tab[i];
-        comb->length++;
-    }
-    freeList_i(smaller);
-    freeList_i(bigger);
-
-    combination->tab[combination->length] = comb;
-    combination->length++;
-    freeList_i(holes);
-    return combination;
+    exit(0);
 }
 
-void countSort(List_i *list) {
-    List_i *output = newList_i(list->length);
-    int count[16], i;
-    memset(count, 0, sizeof(count));
-    for (i = 0; i < list->length; i++) {
-        count[list->tab[i]]++;
-    }
-    for (i = 1; i < 16; i++) {
-        count[i] += count[i - 1];
-    }
-    for (i = 0; i < list->length; i++) {
-        int value = list->tab[i];
-        output->tab[count[value] - 1] = value;
-        count[value]--;
-    }
-    for (i = 0; i < list->length; ++i) {
-        list->tab[i] = output->tab[i];
-    }
-    freeList_i(output);
-}
+int main() {
+    srand(time(NULL));
+    Board board = {{{2, 2}, {2, 2}, {2, 2}, {2, 2}, {2, 2}, {2, 2}, {2, 2}, {2, 2}, {2, 2}, {2, 2}, {2, 2}, {2, 2}, {2, 2}, {2, 2}, {2, 2}, {2, 2}}, 64};
+    Player p1 = {0, false};
+    Player p2 = {0, true};
+    sow = newList_i(64);
 
-void draw() {
-    for (int i = 0; i < 16; i++) {
-        printf("%d(%s%d%s,%s%d%s) ", i + 1, Colors[RED], board.holes[i].R, Colors[DEFAULT], Colors[BLUE], board.holes[i].B, Colors[DEFAULT]);
-        if (i == 7 || i == 15) {
-            printf("\n");
-        }
+    while (true) {
+        printf("%s------------------------------Player 1------------------------------%s\n", Colors[YELLOW], Colors[DEFAULT]);
+        turnMinMax(&board, &p1, &p2, true);
+        getWinner(board, p1, p2);
+        printf("%s------------------------------Player 2------------------------------%s\n", Colors[YELLOW], Colors[DEFAULT]);
+        turnMinMax(&board, &p1, &p2, false);
+        getWinner(board, p1, p2);
     }
 }
