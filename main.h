@@ -1,7 +1,7 @@
 struct Hole_s {
     int B;
     int R;
-} newHole = {2, 2};
+};
 
 typedef struct Hole_s Hole;
 
@@ -15,7 +15,7 @@ typedef struct Board_s Board;
 struct Player_s {
     int seeds;
     bool even;
-} newPlayer1 = {0, false}, newPlayer2 = {0, true};
+};
 
 typedef struct Player_s Player;
 
@@ -29,30 +29,36 @@ enum Colors {
     DEFAULT
 };
 
-char *Colors[7] = {"", "", "", "", "", "", ""};
+char *Colors[7] = {"\033[91m", "\033[92m", "\033[93m", "\033[94m", "\033[95m", "\033[96m", "\033[0m"};
+struct Move_s {
+    Board board;
+    Player p1;
+    Player p2;
+    int hole;
+    char color;
+    int score;
+};
 
-void draw();
-void forbiddenMove(char *move);
+typedef struct Move_s Move;
 
-bool turn(Player *player);
-void getWinner(Player *player1, Player *player2);
+Move valeurMinMax(Move move, bool p1Turn, int profondeur, int profondeurMax);
+Move createNode(Move *move, bool p1Turn, int nodeNbr, bool blue);
+int initSow(int startingHole, char color, bool p1Turn, int nbrSeeds);
 
 void readHole(int *startingHole, char *color);
-void readHoleBOT(Player *player, int *startingHole, char *color);
 
-int getSeeds(Player *player, int startingHole, char color);
+int getSeeds(Board *board, Player *player, int startingHole, char color);
+void setSeeds(Board *board, Player *player, int nbrSeeds, char color, int startingHole);
+int capture(Board *board, Player *player, int lastSowedHole);
 
-List_i *readLine();
-List_i *readLineBOT(Player *player, char color, int startingHole, int nbrSeeds);
+Board copyBoard(Board board);
+Move copyMove(Move move);
 
-void setSeeds(Player *player, int nbrSeeds, char color, int startingHole, List_i *holes);
-void capture(Player *player, int startingHole);
+void forbiddenMove(char *move);
 
-List_s *possiblesHolesToPick(Player *player);
-List_ii *possiblesHolesToSow(Player *player, char color, int startingHole, int sampleSize);
-
-char *moveToString(int i, char color);
-
-void countSort(List_i *list);
+void printMove(Move move);
+void printBoard(Board board);
+void compareBestMinMax(Move res, Move move, Move *bestMax, Move *bestMin, bool p1Turn , int profondeur);
+int playMove(Move *move, bool p1Turn);
 
 Board copyBoard(Board board);
