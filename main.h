@@ -7,9 +7,8 @@ typedef struct Hole_s Hole;
 
 struct Board_s {
     Hole holes[16];
-    int index;
     int total;
-} newBoard = {{{2, 2}, {2, 2}, {2, 2}, {2, 2}, {2, 2}, {2, 2}, {2, 2}, {2, 2}, {2, 2}, {2, 2}, {2, 2}, {2, 2}, {2, 2}, {2, 2}, {2, 2}, {2, 2}}, 1, 64};
+} newBoard = {{{2, 2}, {2, 2}, {2, 2}, {2, 2}, {2, 2}, {2, 2}, {2, 2}, {2, 2}, {2, 2}, {2, 2}, {2, 2}, {2, 2}, {2, 2}, {2, 2}, {2, 2}, {2, 2}}, 64};
 
 typedef struct Board_s Board;
 
@@ -55,3 +54,5 @@ List_ii *possiblesHolesToSow(Player *player, char color, int startingHole, int s
 char *moveToString(int i, char color);
 
 void countSort(List_i *list);
+
+Board copyBoard(Board board);

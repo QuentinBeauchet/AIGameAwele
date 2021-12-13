@@ -9,6 +9,7 @@
 Board board;
 
 int main() {
+    /*
     srand(time(NULL));
     board = newBoard;
     Player player1 = newPlayer1;
@@ -24,7 +25,7 @@ int main() {
             getWinner(&player1, &player2);
             break;
         }
-    }
+    }*/
 }
 
 void getWinner(Player *player1, Player *player2) {
