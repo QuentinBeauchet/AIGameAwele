@@ -8,6 +8,7 @@ typedef struct Hole_s Hole;
 struct Board_s {
     Hole holes[16];
     int total;
+    int odd;
 };
 
 typedef struct Board_s Board;
@@ -42,7 +43,8 @@ struct Move_s {
 
 typedef struct Move_s Move;
 
-Move valeurMinMax(Move move, bool p1Turn, int profondeur, int profondeurMax);
+Move valeurMinMax(Move move, bool p1Turn, int profondeur, int profondeurMax, int eval);
+void compareBestMinMax(Move res, Move move, Move *bestMax, Move *bestMin, bool p1Turn, int profondeur);
 Move createNode(Move *move, bool p1Turn, int nodeNbr, bool blue);
 int initSow(int startingHole, char color, bool p1Turn, int nbrSeeds);
 
@@ -63,3 +65,6 @@ void printBoard(Board board);
 
 int simulateMove(Move *move, bool p1Turn);
 void playMove(Board *board, Player *p1, Player *p2, Move move, bool p1Turn);
+
+void turn(Board *board, Player *p1, Player *p2, bool p1Turn);
+void turnMinMax(Board *board, Player *p1, Player *p2, bool p1Turn, int eval);
