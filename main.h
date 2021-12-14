@@ -37,6 +37,7 @@ struct Move_s {
     int hole;
     char color;
     int score;
+    int alphaBetaScore;
 };
 
 typedef struct Move_s Move;

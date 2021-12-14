@@ -33,47 +33,57 @@ void compareBestMinMax(Move res, Move move, Move *bestMax, Move *bestMin, bool p
 Move valeurMinMax(Move move, bool p1Turn, int profondeur, int profondeurMax) {
     // WIN JOUEUR 1
     if (move.p1.seeds > 33 || (!p1Turn && move.hole == -1)) {
-        move.score = 64;
+        move.score = 1000 - profondeur;
         return move;
     }
     // WIN JOUEUR 2
     if (move.p2.seeds > 33 || (p1Turn && move.hole == -1)) {
-        move.score = -64;
+        move.score = -1000 - profondeur;
         return move;
     }
     // PROFONDEUR MAX
     if (profondeur == profondeurMax || move.board.total <= 8) {
         // FONCTION EVALUATION
-        move.score = move.p1.seeds - move.p2.seeds - profondeur;
+        if(p1Turn)move.score = move.p1.seeds - move.p2.seeds - profondeur;
+        else move.score = rand() % 200 - 100;
         return move;
     }
-
-    Move bestMax = {.score = -100, .hole = -1, .color = ' '};
-    Move bestMin = {.score = 100, .hole = -1, .color = ' '};
+    Move bestMax = {.score = -1000, .hole = -1, .color = ' '};
+    Move bestMin = {.score = 1000, .hole = -1, .color = ' '};
     Player player = p1Turn ? move.p1 : move.p2;
     // Initialisation des parametres des nodes
+
     for (int i = player.even; i < 16; i += 2) {
-        // Trous BLEU
-        int scoreLimit;
-        if(p1Turn)scoreLimit = bestMax.score;
-        else scoreLimit = bestMin.score;
         Move copy;
-        if (move.board.holes[i].B > 0) {
+        if(p1Turn)move.alphaBetaScore = bestMax.score;
+        else move.alphaBetaScore = bestMin.score;
+//        if(p1Turn && move.alphaBetaScore >= copy.alphaBetaScore ){
+//            printf("\n/////////////////////////////\n%i>=%i\n////////////////////////\n",move.alphaBetaScore,copy.alphaBetaScore);
+//        }
+        //printf("%i -- %i, profondeur = %i\n",move.alphaBetaScore, copy.alphaBetaScore,profondeur);
+        if (((p1Turn && move.alphaBetaScore <= copy.alphaBetaScore ) || (!p1Turn && move.alphaBetaScore >= copy.alphaBetaScore))
+        && move.board.holes[i].B > 0) {
+            //printf("passéB");
             copy = createNode(&move, p1Turn, i, true);
             // Joue le coup
             playMove(&move, p1Turn);
             Move res = valeurMinMax(move, !p1Turn, profondeur + 1, profondeurMax);
             move = copy;
-
+            move.score = res.score;
             compareBestMinMax(res,move,&bestMax,&bestMin,p1Turn,profondeur);
         }
+        if(p1Turn)move.alphaBetaScore = bestMax.score;
+        else move.alphaBetaScore = bestMin.score;
         // Trous ROUGES
-        if (move.board.holes[i].R > 0) {
+        if ( ((p1Turn && move.alphaBetaScore >= copy.alphaBetaScore ) || (!p1Turn && move.alphaBetaScore >= copy.alphaBetaScore )) && move.board.holes[i].R > 0) {
             copy = createNode(&move, p1Turn, i, false);
             // Joue le coup
             playMove(&move, p1Turn);
+            //printf("passéR");
             Move res = valeurMinMax(move, !p1Turn, profondeur + 1, profondeurMax);
             move = copy;
+            move.score = res.score;
+            move.alphaBetaScore = res.alphaBetaScore;
             compareBestMinMax(res,move,&bestMax,&bestMin,p1Turn,profondeur);
         }
     }
@@ -257,7 +267,7 @@ void turnMinMax(Board *board, Player *p1, Player *p2, bool p1Turn) {
 
     int profondeur;
     if (lastTime > 1.5) {
-        profondeur = 4;
+        profondeur = 8;
     } else{
         profondeur = 15;
     }
