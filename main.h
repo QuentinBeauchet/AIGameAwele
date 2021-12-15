@@ -8,7 +8,8 @@ typedef struct Hole_s Hole;
 struct Board_s {
     Hole holes[16];
     int total;
-} newBoard = {{{2, 2}, {2, 2}, {2, 2}, {2, 2}, {2, 2}, {2, 2}, {2, 2}, {2, 2}, {2, 2}, {2, 2}, {2, 2}, {2, 2}, {2, 2}, {2, 2}, {2, 2}, {2, 2}}, 64};
+    int odd;
+};
 
 typedef struct Board_s Board;
 
@@ -37,12 +38,14 @@ struct Move_s {
     int hole;
     char color;
     int score;
-    int alphaBetaScore;
+    int beta;
+    int alpha;
 };
 
 typedef struct Move_s Move;
 
-Move valeurMinMax(Move move, bool p1Turn, int profondeur, int profondeurMax);
+Move valeurMinMax(Move move, bool p1Turn, int profondeur, int profondeurMax, int eval);
+void compareBestMinMax(Move res, Move move, Move *bestMax, Move *bestMin, bool p1Turn, int profondeur);
 Move createNode(Move *move, bool p1Turn, int nodeNbr, bool blue);
 int initSow(int startingHole, char color, bool p1Turn, int nbrSeeds);
 
@@ -56,10 +59,13 @@ Board copyBoard(Board board);
 Move copyMove(Move move);
 
 void forbiddenMove(char *move);
+void getWinner(Board board, Player p1, Player p2);
 
 void printMove(Move move);
 void printBoard(Board board);
-void compareBestMinMax(Move res, Move move, Move *bestMax, Move *bestMin, bool p1Turn , int profondeur);
-int playMove(Move *move, bool p1Turn);
 
-Board copyBoard(Board board);
+int simulateMove(Move *move, bool p1Turn);
+void playMove(Board *board, Player *p1, Player *p2, Move move, bool p1Turn);
+
+void turn(Board *board, Player *p1, Player *p2, bool p1Turn);
+void turnMinMax(Board *board, Player *p1, Player *p2, bool p1Turn, int eval,int profondeur);
